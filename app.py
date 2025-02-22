@@ -52,16 +52,16 @@ def extract_taxes(code):
 def check_liquidity_lock(code):
     for name, address in LIQUIDITY_LOCK_ADDRESSES.items():
         if address.lower() in code.lower():
-            return f"<h3 style='color: green;'>✅ السيولة مقفلة في {name}</h3><p>🔒 تم العثور على عنوان القفل: <b>{address}</b></p>"
-    return "<h3 style='color: red;'>🚨 السيولة غير مقفلة!</h3><p>⚠️ لم يتم العثور على أي عقد تأمين للسيولة.</p>"
+            return f"✅ السيولة مقفلة في {name} 🔒\nتم العثور على عنوان القفل: `{address}`"
+    return "🚨 السيولة غير مقفلة! ⚠️"
 
 # ✅ التحقق من وجود بلاك ليست
 def check_blacklist(code):
     findings = []
     for category, functions in BLACKLIST_TYPES.items():
-        detected = [f"<code style='color: #ff9900; font-weight: bold;'>{func}</code>" for func in functions if func in code]
+        detected = [f"`{func}`" for func in functions if func in code]
         if detected:
-            findings.append(f"<b style='color: #333;'>🔹 {category}:</b><br>" + "<br>".join(detected))
+            findings.append(f"🔹 **{category}:**\n" + "\n".join(detected))
     return findings
 
 # ✅ تحليل كود العقد الذكي
@@ -73,9 +73,9 @@ def analyze_contract(code):
     buy_tax, sell_tax = extract_taxes(code)
 
     for category, functions in SUSPICIOUS_FUNCTIONS.items():
-        detected = [f"<code style='color: #ff9900; font-weight: bold;'>{func}</code>" for func in functions if func in code]
+        detected = [f"`{func}`" for func in functions if func in code]
         if detected:
-            findings.append(f"<b style='color: #333;'>🔹 {category}:</b><br>" + "<br>".join(detected))
+            findings.append(f"🔹 **{category}:**\n" + "\n".join(detected))
             risk_score += len(detected) * 10  
 
     # ✅ التحقق من البلاك ليست
@@ -89,20 +89,35 @@ def analyze_contract(code):
 
     # 🟢🟡🟠🔴 تصنيف مستوى الخطورة
     if risk_score == 0:
-        security_status = "<h3 style='color: green;'>🟢 العقد آمن بنسبة 100%</h3><p>✅ لم يتم العثور على وظائف مشبوهة.</p>"
+        security_status = "🟢 **العقد آمن بنسبة 100%** ✅"
     elif risk_score <= 30:
-        security_status = f"<h3 style='color: yellow;'>🟡 مستوى خطورة منخفض ({risk_score}%)</h3><p>⚠️ يحتوي على بعض الوظائف المشبوهة لكنها ليست بالضرورة خطيرة.</p>"
+        security_status = f"🟡 **مستوى خطورة منخفض ({risk_score}%)** ⚠️"
     elif risk_score <= 70:
-        security_status = f"<h3 style='color: orange;'>🟠 مستوى خطورة متوسط ({risk_score}%)</h3><p>⚠️ يحتوي على وظائف قد تكون خطيرة، يُفضل التحقق يدويًا.</p>"
+        security_status = f"🟠 **مستوى خطورة متوسط ({risk_score}%)** ⚠️"
     else:
-        security_status = f"<h3 style='color: red;'>🔴 مستوى خطورة عالي جدًا ({risk_score}%)</h3><p>🚨 يحتوي على وظائف مشبوهة جدًا وقد يكون عقدًا احتياليًا!</p>"
+        security_status = f"🔴 **مستوى خطورة عالي جدًا ({risk_score}%)** 🚨"
 
     # ✅ إضافة نسبة الضرائب إلى التقرير
     tax_info = f"""
-    <h3 style='color: #007bff;'>📊 نسبة العمولات</h3>
-    <p><b>💰 عمولة الشراء:</b> {buy_tax}%</p>
-    <p><b>💰 عمولة البيع:</b> {sell_tax}%</p>
+    ### 📊 نسبة العمولات:
+    - 💰 **عمولة الشراء:** {buy_tax}%
+    - 💰 **عمولة البيع:** {sell_tax}%
     """
 
-    result = security_status + tax_info + liquidity_status + "<br>".join(findings)
+    result = f"## {security_status}\n\n{tax_info}\n\n**{liquidity_status}**\n\n" + "\n\n".join(findings)
     return result
+
+# ✅ واجهة Streamlit
+st.title("🔍 تحليل العقود الذكية")
+
+# ✅ إدخال كود العقد الذكي
+code = st.text_area("📌 أدخل كود العقد الذكي هنا:")
+
+# ✅ زر التحليل
+if st.button("🔍 تحليل العقد"):
+    contract_code = extract_smart_contract(code)
+    if contract_code:
+        result = analyze_contract(contract_code)
+        st.markdown(result, unsafe_allow_html=True)
+    else:
+        st.error("❌ لم يتم العثور على كود عقد ذكي صالح! الرجاء إدخال كود صحيح.")
